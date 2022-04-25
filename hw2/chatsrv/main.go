@@ -13,6 +13,7 @@ var (
 	entering = make(chan client)
 	leaving  = make(chan client)
 	messages = make(chan string)
+	names    = map[string]string{}
 )
 
 func main() {
@@ -20,6 +21,8 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	log.Println("server started at localhost:8001")
 
 	go broadcaster()
 
@@ -36,22 +39,33 @@ func main() {
 }
 
 func handleConn(conn net.Conn) {
+	var cliName string
+
 	ch := make(chan string)
 	go clientWriter(conn, ch)
 
-	who := conn.RemoteAddr().String()
-	ch <- "You are " + who
-	messages <- who + " has arrived"
+	input := bufio.NewScanner(conn)
+	cliAddr := conn.RemoteAddr().String()
+
+	_, ok := names[cliAddr]
+	if !ok {
+		input.Scan()
+		names[cliAddr] = input.Text()
+	}
+
+	cliName = names[cliAddr]
+
+	ch <- "You are " + cliName
+	messages <- cliName + " has arrived"
 	entering <- ch
 
-	log.Println(who + " has arrived")
+	log.Println(cliName + "[" + cliAddr + "]" + " has arrived")
 
-	input := bufio.NewScanner(conn)
 	for input.Scan() {
-		messages <- who + ": " + input.Text()
+		messages <- cliName + ": " + input.Text()
 	}
 	leaving <- ch
-	messages <- who + " has left"
+	messages <- cliName + " has left"
 
 	err := conn.Close()
 	if err != nil {
