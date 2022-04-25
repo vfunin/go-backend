@@ -24,7 +24,7 @@ func main() {
 
 	_, err = io.Copy(conn, os.Stdin) // until you send ^Z
 	if err != nil {
-		return
+		log.Fatal(err)
 	}
 
 	fmt.Printf("%s: exit", conn.LocalAddr())

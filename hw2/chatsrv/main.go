@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"os"
 )
 
 type client chan<- string
@@ -22,6 +23,7 @@ func main() {
 	}
 
 	go broadcaster()
+	log.Println("Type text and press enter for bulk message: ")
 
 	for {
 		conn, err := listener.Accept()
@@ -32,6 +34,15 @@ func main() {
 		}
 
 		go handleConn(conn)
+
+		go sendBulkMessage(conn)
+	}
+}
+
+func sendBulkMessage(conn net.Conn) {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		messages <- "Admin message: " + scanner.Text()
 	}
 }
 
