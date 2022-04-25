@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"log"
@@ -11,6 +12,9 @@ import (
 	"time"
 )
 
+var messages = make(chan string)
+var clients []net.Conn
+
 func main() {
 	ctx, _ := signal.NotifyContext(context.Background(), os.Interrupt)
 
@@ -18,7 +22,7 @@ func main() {
 		KeepAlive: time.Minute,
 	}
 
-	l, err := cfg.Listen(ctx, "tcp", ":9000")
+	l, err := cfg.Listen(ctx, "tcp", ":9001")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -26,6 +30,10 @@ func main() {
 	wg := &sync.WaitGroup{}
 
 	log.Println("im started!")
+
+	log.Println("Type text and press enter for send bulk message")
+
+	go sendBulkMessage()
 
 	go func() {
 		for {
@@ -39,6 +47,8 @@ func main() {
 			}
 
 			wg.Add(1)
+
+			clients = append(clients, conn)
 
 			go handleConn(ctx, conn, wg)
 		}
@@ -57,6 +67,13 @@ func main() {
 	log.Println("exit")
 }
 
+func sendBulkMessage() {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		messages <- scanner.Text()
+	}
+}
+
 func handleConn(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
 	defer wg.Done()
 	defer conn.Close()
@@ -71,6 +88,13 @@ func handleConn(ctx context.Context, conn net.Conn, wg *sync.WaitGroup) {
 			_, err := fmt.Fprintf(conn, "now: %s\n", t)
 			if err != nil {
 				return
+			}
+		case msg := <-messages:
+			for _, cliConn := range clients {
+				_, err := fmt.Fprintf(cliConn, "Admin message: %s\n", msg)
+				if err != nil {
+					return
+				}
 			}
 		}
 	}
