@@ -21,6 +21,7 @@ const timeOut = 30
 func (h *UploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
+		reqExt := "." + r.FormValue("ext")
 		err := filepath.Walk(h.UploadDir, func(path string, info os.FileInfo, _ error) error {
 			if _, err := os.Stat(h.UploadDir); os.IsNotExist(err) {
 				return err
@@ -32,12 +33,17 @@ func (h *UploadHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 			ext := filepath.Ext(path)
 
+			if reqExt != "." && reqExt != ext {
+				return nil
+			}
+
 			i := fmt.Sprintf("name: %s; size: %d; ext: %s", info.Name(), info.Size(), ext)
 
 			fmt.Fprintln(w, i)
 
 			return nil
 		})
+
 		if err != nil {
 			log.Println(err)
 			http.Error(w, "Unable to save file", http.StatusInternalServerError)
@@ -135,11 +141,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		fmt.Fprintf(w, "Got a new employee!\nName: %s\nAge: %dy.o.\nSalary %0.2f\n",
-			emp.Name,
-			emp.Age,
-			emp.Salary,
-		)
+		fmt.Fprintf(w, "Got a new employee!\nName: %s\nAge: %dy.o.\nSalary %0.2f\n", emp.Name, emp.Age, emp.Salary)
 	}
 }
 
