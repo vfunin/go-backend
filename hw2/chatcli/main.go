@@ -9,10 +9,13 @@ import (
 )
 
 func main() {
+	fmt.Println("Enter your name:")
+
 	conn, err := net.Dial("tcp", "localhost:8001")
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	defer conn.Close()
 
 	go func() {
