@@ -4,24 +4,39 @@ import (
 	"bufio"
 	"fmt"
 	"log"
+	"math/rand"
 	"net"
+	"os"
+	"strconv"
+	"time"
 )
 
 type client chan<- string
 
+const maxNumber = 1000
+
 var (
-	entering = make(chan client)
-	leaving  = make(chan client)
-	messages = make(chan string)
+	entering   = make(chan client)
+	leaving    = make(chan client)
+	messages   = make(chan string)
+	gameResult = -1
 )
 
 func main() {
+	rand.Seed(time.Now().UnixNano())
+
 	listener, err := net.Listen("tcp", "localhost:8001")
 	if err != nil {
 		log.Fatal(err)
 	}
 
+	log.Println("server started at localhost:8001")
+
 	go broadcaster()
+
+	log.Println("Type 'game' and press enter to start new math game.")
+
+	go startNewGame()
 
 	for {
 		conn, err := listener.Accept()
@@ -33,6 +48,28 @@ func main() {
 
 		go handleConn(conn)
 	}
+}
+
+func startNewGame() {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		if scanner.Text() != "game" {
+			continue
+		}
+
+		message := generateNewGameSet()
+		messages <- generateNewGameSet()
+
+		log.Println(message)
+	}
+}
+
+func generateNewGameSet() string {
+	op1 := rand.Intn(maxNumber) //nolint:gosec
+	op2 := rand.Intn(maxNumber) //nolint:gosec
+	gameResult = op1 + op2
+
+	return fmt.Sprintf("New math game: %d + %d = ?", op1, op2)
 }
 
 func handleConn(conn net.Conn) {
@@ -48,7 +85,26 @@ func handleConn(conn net.Conn) {
 
 	input := bufio.NewScanner(conn)
 	for input.Scan() {
+		message := input.Text()
 		messages <- who + ": " + input.Text()
+
+		if gameResult == -1 {
+			continue
+		}
+
+		cliResult, err := strconv.Atoi(message)
+		if err != nil {
+			continue
+		}
+
+		if cliResult == gameResult {
+			resultMessage := "The game is over! The winner is " + who
+			messages <- resultMessage
+
+			gameResult = -1
+
+			log.Println(resultMessage)
+		}
 	}
 	leaving <- ch
 	messages <- who + " has left"
