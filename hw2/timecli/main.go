@@ -18,7 +18,7 @@ func main() {
 		KeepAlive: time.Minute,
 	}
 
-	conn, err := d.DialContext(ctx, "tcp", "[::1]:9000")
+	conn, err := d.DialContext(ctx, "tcp", "[::1]:9001")
 	if err != nil {
 		log.Fatal(err)
 	}
